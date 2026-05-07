@@ -629,8 +629,9 @@ function QuestionScreen({ game, myRole, myName, idx, total, onAnswer }) {
   const q = game.questions[idx];
   async function submit() {
     if (!answer.trim()) return;
+    const latest = await db.get("games", game.id);
     const key = myRole === "host" ? "host_answers" : "guest_answers";
-    const prev = game[key] || [];
+    const prev = latest[key] || [];
     const updated = [...prev, answer.trim()];
     const patch = { [key]: updated };
     if (updated.length === total) patch[myRole === "host" ? "host_done" : "guest_done"] = true;
