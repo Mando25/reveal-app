@@ -11,23 +11,38 @@ async function dbGet(id) {
     const d = await r.json(); return d[0] || null;
   } catch(e) { return null; }
 }
+
 async function dbInsert(row) {
   try {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/games`, { method:"POST", headers:{...H, Prefer:"return=representation"}, body:JSON.stringify(row) });
     const d = await r.json(); return d[0] || null;
   } catch(e) { return null; }
 }
+
 async function dbPatch(id, patch) {
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${id}`, { method:"PATCH", headers:H, body:JSON.stringify(patch) });
   } catch(e) {}
 }
+
+// ── RPC pour finir une partie proprement ──
+async function dbFinishPlayer(gameId, role, answers) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/finish_player`, {
+      method: "POST",
+      headers: H,
+      body: JSON.stringify({ game_id: gameId, role, answers })
+    });
+  } catch(e) {}
+}
+
 async function dbGetMsgs(gameId, qIdx) {
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/messages?game_id=eq.${gameId}&question_index=eq.${qIdx}&order=created_at.asc`, { headers:H });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/messages?game_id=eq.${gameId}&question_index=eq.${qIdx}&order=created_at.asc`, { headers: H });
     return r.json();
   } catch(e) { return []; }
 }
+
 async function dbInsertMsg(msg) {
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/messages`, { method:"POST", headers:H, body:JSON.stringify(msg) });
@@ -368,7 +383,7 @@ function WaitingScreen({ game, myName, onStart, onBack }) {
     if (guestJoined) return;
     const iv = setInterval(async () => {
       const g = await dbGet(game.id);
-      if (g?.guest_name){setGuestJoined(true);}
+      if (g?.guest_name) setGuestJoined(true);
     }, 1000);
     return ()=>clearInterval(iv);
   },[guestJoined]);
@@ -391,21 +406,22 @@ function WaitingScreen({ game, myName, onStart, onBack }) {
   );
 }
 
-function QuestionScreen({ game, myRole, idx, total, onAnswer }) {
+// ── Stocke toutes les réponses localement et envoie tout en une fois à la fin ──
+function QuestionScreen({ game, myRole, idx, total, allAnswers, onAnswer }) {
   const [answer, setAnswer] = useState("");
   const q = game.questions[idx];
 
   async function submit() {
     if (!answer.trim()) return;
-    const latest = await dbGet(game.id);
-    if (!latest) return;
-    const key = myRole==="host"?"host_answers":"guest_answers";
-    const doneKey = myRole==="host"?"host_done":"guest_done";
-    const prev = latest[key] || [];
-    const updated = [...prev, answer.trim()];
-    const patch = {[key]:updated};
-    if (updated.length>=total) patch[doneKey]=true;
-    await dbPatch(game.id, patch);
+    const updated = [...allAnswers, answer.trim()];
+    if (updated.length >= total) {
+      // Envoie tout en une fois avec la fonction RPC
+      await dbFinishPlayer(game.id, myRole, updated);
+    } else {
+      // Sauvegarde partielle
+      const key = myRole==="host"?"host_answers":"guest_answers";
+      await dbPatch(game.id, {[key]: updated});
+    }
     onAnswer(answer.trim());
   }
 
@@ -427,22 +443,20 @@ function QuestionScreen({ game, myRole, idx, total, onAnswer }) {
   );
 }
 
-function DilemmeScreen({ game, myRole, idx, total, onAnswer }) {
+function DilemmeScreen({ game, myRole, idx, total, allAnswers, onAnswer }) {
   const [chosen, setChosen] = useState(null);
   const d = game.dilemmes[idx];
   const intensity = game.mode==="dilemme_epice"?"epice":"soft";
 
   async function submit() {
     if (!chosen) return;
-    const latest = await dbGet(game.id);
-    if (!latest) return;
-    const key = myRole==="host"?"host_answers":"guest_answers";
-    const doneKey = myRole==="host"?"host_done":"guest_done";
-    const prev = latest[key] || [];
-    const updated = [...prev, chosen];
-    const patch = {[key]:updated};
-    if (updated.length>=total) patch[doneKey]=true;
-    await dbPatch(game.id, patch);
+    const updated = [...allAnswers, chosen];
+    if (updated.length >= total) {
+      await dbFinishPlayer(game.id, myRole, updated);
+    } else {
+      const key = myRole==="host"?"host_answers":"guest_answers";
+      await dbPatch(game.id, {[key]: updated});
+    }
     onAnswer(chosen);
     setChosen(null);
   }
@@ -469,7 +483,6 @@ function DilemmeScreen({ game, myRole, idx, total, onAnswer }) {
   );
 }
 
-// ── FIX PRINCIPAL : polling à 1s + bouton actualiser ──
 function WaitingRevealScreen({ game, myName, myRole, onReveal }) {
   const [liveGame, setLiveGame] = useState(game);
   const [refreshing, setRefreshing] = useState(false);
@@ -515,9 +528,7 @@ function WaitingRevealScreen({ game, myName, myRole, onReveal }) {
         {!otherDone&&<>
           <p style={{fontSize:13,color:"var(--muted)",textAlign:"center",marginTop:8}}>En attente que {otherName} termine…</p>
           <div className="dots"><div className="dot"/><div className="dot"/><div className="dot"/></div>
-          <button className="refresh-btn" onClick={handleRefresh}>
-            {refreshing?"…":"🔄 Actualiser"}
-          </button>
+          <button className="refresh-btn" onClick={handleRefresh}>{refreshing?"…":"🔄 Actualiser"}</button>
         </>}
         {otherDone&&myRole==="host"&&<>
           <p style={{fontSize:13,color:"var(--muted2)",textAlign:"center",margin:"10px 0 16px"}}>Tout le monde est prêt !</p>
@@ -525,9 +536,7 @@ function WaitingRevealScreen({ game, myName, myRole, onReveal }) {
         </>}
         {otherDone&&myRole==="guest"&&<>
           <p style={{fontSize:13,color:"var(--muted)",textAlign:"center",marginTop:10}}>En attente que l'hôte lance le reveal…</p>
-          <button className="refresh-btn" onClick={handleRefresh}>
-            {refreshing?"…":"🔄 Actualiser"}
-          </button>
+          <button className="refresh-btn" onClick={handleRefresh}>{refreshing?"…":"🔄 Actualiser"}</button>
         </>}
       </div>
     </div>
@@ -641,12 +650,15 @@ export default function App() {
   const [myName, setMyName] = useState("");
   const [currentQ, setCurrentQ] = useState(0);
   const [revealIdx, setRevealIdx] = useState(0);
+  const [allAnswers, setAllAnswers] = useState([]);
 
   const isDilemme = game&&(game.mode==="dilemme_soft"||game.mode==="dilemme_epice");
   const total = game?(isDilemme?game.dilemmes.length:game.questions.length):0;
   const otherName = game?(myRole==="host"?(game.guest_name||"Ton partenaire"):game.host_name):"";
 
-  function handleAnswer() {
+  function handleAnswer(ans) {
+    const updated = [...allAnswers, ans];
+    setAllAnswers(updated);
     if (currentQ+1<total) setCurrentQ(q=>q+1);
     else setScreen("waitingReveal");
   }
@@ -657,7 +669,7 @@ export default function App() {
   }
 
   function reset() {
-    setGame(null);setMyRole(null);setMyName("");setCurrentQ(0);setRevealIdx(0);setScreen("home");
+    setGame(null);setMyRole(null);setMyName("");setCurrentQ(0);setRevealIdx(0);setAllAnswers([]);setScreen("home");
   }
 
   return (
@@ -665,11 +677,11 @@ export default function App() {
       <style>{G}</style>
       <div className="noise"/>
       {screen==="home"&&<HomeScreen onCreate={()=>setScreen("create")} onJoin={()=>setScreen("join")}/>}
-      {screen==="create"&&<CreateScreen onStart={g=>{setGame(g);setMyRole("host");setMyName(g.myName);setCurrentQ(0);setRevealIdx(0);setScreen("waiting");}} onBack={()=>setScreen("home")}/>}
-      {screen==="join"&&<JoinScreen onJoin={g=>{setGame(g);setMyRole("guest");setMyName(g.myName);setCurrentQ(0);setRevealIdx(0);setScreen(g.mode?.startsWith("dilemme")?"dilemme":"question");}} onBack={()=>setScreen("home")}/>}
+      {screen==="create"&&<CreateScreen onStart={g=>{setGame(g);setMyRole("host");setMyName(g.myName);setCurrentQ(0);setRevealIdx(0);setAllAnswers([]);setScreen("waiting");}} onBack={()=>setScreen("home")}/>}
+      {screen==="join"&&<JoinScreen onJoin={g=>{setGame(g);setMyRole("guest");setMyName(g.myName);setCurrentQ(0);setRevealIdx(0);setAllAnswers([]);setScreen(g.mode?.startsWith("dilemme")?"dilemme":"question");}} onBack={()=>setScreen("home")}/>}
       {screen==="waiting"&&game&&<WaitingScreen game={game} myName={myName} onStart={()=>setScreen(isDilemme?"dilemme":"question")} onBack={()=>setScreen("home")}/>}
-      {screen==="question"&&game&&<QuestionScreen key={currentQ} game={game} myRole={myRole} idx={currentQ} total={total} onAnswer={handleAnswer}/>}
-      {screen==="dilemme"&&game&&<DilemmeScreen key={currentQ} game={game} myRole={myRole} idx={currentQ} total={total} onAnswer={handleAnswer}/>}
+      {screen==="question"&&game&&<QuestionScreen key={currentQ} game={game} myRole={myRole} idx={currentQ} total={total} allAnswers={allAnswers} onAnswer={handleAnswer}/>}
+      {screen==="dilemme"&&game&&<DilemmeScreen key={currentQ} game={game} myRole={myRole} idx={currentQ} total={total} allAnswers={allAnswers} onAnswer={handleAnswer}/>}
       {screen==="waitingReveal"&&game&&<WaitingRevealScreen game={game} myName={myName} myRole={myRole} onReveal={g=>{if(g)setGame(g);setRevealIdx(0);setScreen(isDilemme?"revealDilemme":"reveal");}}/>}
       {screen==="reveal"&&game&&<RevealScreen game={game} myRole={myRole} myName={myName} revealIdx={revealIdx} onNext={handleNext} isLast={revealIdx+1===total}/>}
       {screen==="revealDilemme"&&game&&<DilemmeRevealScreen game={game} myRole={myRole} myName={myName} revealIdx={revealIdx} onNext={handleNext} isLast={revealIdx+1===total}/>}
