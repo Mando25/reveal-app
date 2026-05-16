@@ -1,55 +1,29 @@
-// v2
 import { useState, useEffect, useRef } from "react";
 
 const SUPABASE_URL = "https://tzhrnnnpataoxklbtogn.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6aHJubm5wYXRhb3hrbGJ0b2duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxMzg4NTIsImV4cCI6MjA5MzcxNDg1Mn0.rn6f4SE9hozourQgP_z6HuYt45xe7Ws4MHrbeoH0hm4";
-
 const H = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" };
 
 async function dbGet(id) {
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${id}`, { headers: H });
-    const d = await r.json(); return d[0] || null;
-  } catch(e) { return null; }
+  try { const r = await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${id}`, { headers: H }); const d = await r.json(); return d[0] || null; } catch(e) { return null; }
 }
-
 async function dbInsert(row) {
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/games`, { method:"POST", headers:{...H, Prefer:"return=representation"}, body:JSON.stringify(row) });
-    const d = await r.json(); return d[0] || null;
-  } catch(e) { return null; }
+  try { const r = await fetch(`${SUPABASE_URL}/rest/v1/games`, { method:"POST", headers:{...H, Prefer:"return=representation"}, body:JSON.stringify(row) }); const d = await r.json(); return d[0] || null; } catch(e) { return null; }
 }
-
 async function dbPatch(id, patch) {
-  try {
-    await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${id}`, { method:"PATCH", headers:H, body:JSON.stringify(patch) });
-  } catch(e) {}
+  try { await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${id}`, { method:"PATCH", headers:H, body:JSON.stringify(patch) }); } catch(e) {}
 }
-
-// ── RPC pour finir une partie proprement ──
 async function dbFinishPlayer(gameId, role, answers) {
-  try {
-    await fetch(`${SUPABASE_URL}/rest/v1/rpc/finish_player`, {
-      method: "POST",
-      headers: H,
-      body: JSON.stringify({ game_id: gameId, role, answers })
-    });
-  } catch(e) {}
+  try { await fetch(`${SUPABASE_URL}/rest/v1/rpc/finish_player`, { method:"POST", headers:H, body:JSON.stringify({ game_id: gameId, role, answers }) }); } catch(e) {}
 }
-
 async function dbGetMsgs(gameId, qIdx) {
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/messages?game_id=eq.${gameId}&question_index=eq.${qIdx}&order=created_at.asc`, { headers: H });
-    return r.json();
-  } catch(e) { return []; }
+  try { const r = await fetch(`${SUPABASE_URL}/rest/v1/messages?game_id=eq.${gameId}&question_index=eq.${qIdx}&order=created_at.asc`, { headers:H }); return r.json(); } catch(e) { return []; }
 }
-
 async function dbInsertMsg(msg) {
-  try {
-    await fetch(`${SUPABASE_URL}/rest/v1/messages`, { method:"POST", headers:H, body:JSON.stringify(msg) });
-  } catch(e) {}
+  try { await fetch(`${SUPABASE_URL}/rest/v1/messages`, { method:"POST", headers:H, body:JSON.stringify(msg) }); } catch(e) {}
 }
 
+// ─── QUESTIONS ────────────────────────────────────────────────────────────────
 const QUESTIONS = {
   decouverte: {
     classiques: [
@@ -73,6 +47,92 @@ const DILEMMES = {
   ]
 };
 
+// ─── ACTION OU VÉRITÉ ─────────────────────────────────────────────────────────
+const AOV = {
+  soft: {
+    verite: [
+      // Niveau 1 - très léger
+      "C'est quoi le truc le plus gênant que t'aies jamais fait en public ?",
+      "T'as déjà eu le béguin pour quelqu'un dans ce groupe ?",
+      "C'est quoi ton défaut que tu assumes complètement ?",
+      "T'as déjà menti à quelqu'un dans cette partie ? Sur quoi ?",
+      "C'est quoi le compliment que tu aimerais recevoir mais que personne te fait ?",
+      "T'as déjà été jaloux(se) de quelqu'un ici ? De quoi ?",
+      "C'est quoi la chose la plus courageuse que t'aies jamais faite ?",
+      "T'as un secret que t'as jamais dit à personne ?",
+      // Niveau 2 - plus personnel
+      "C'est quoi ton plus grand regret dans une relation ?",
+      "T'as déjà dit 'je t'aime' sans le penser vraiment ?",
+      "C'est quoi la chose la plus égoïste que t'aies jamais faite ?",
+      "T'as déjà eu envie d'embrasser quelqu'un dans cette pièce ?",
+      "C'est quoi ton plus grand complexe ?",
+      "T'as déjà trahi la confiance de quelqu'un ? Comment ?",
+      // Niveau 3 - intense
+      "C'est quoi la chose la plus intime que t'aies jamais partagée avec quelqu'un ?",
+      "T'as déjà ressenti quelque chose pour quelqu'un que t'aurais pas dû ?",
+      "C'est quoi la pensée que t'oses jamais dire à voix haute ?",
+      "T'as déjà fait semblant d'être quelqu'un d'autre pour plaire à quelqu'un ?"
+    ],
+    action: [
+      // Niveau 1
+      "Envoie un compliment sincère à quelqu'un dans le chat maintenant.",
+      "Dis à voix haute ou dans le chat ce que tu penses vraiment de cette partie.",
+      "Montre le dernier meme que t'as envoyé à quelqu'un.",
+      "Fais une imitation de quelqu'un que tout le monde connaît.",
+      "Dis le prénom de quelqu'un qui te plaît en ce moment.",
+      // Niveau 2
+      "Envoie le dernier message vocal que t'as envoyé.",
+      "Montre une photo de toi dont t'es pas fier(e).",
+      "Dis quelque chose que t'as jamais dit à quelqu'un dans cette partie.",
+      "Fais une déclaration à la personne de ton choix dans le chat.",
+      // Niveau 3
+      "Dis à quelqu'un ici ce que tu penses vraiment de lui/elle.",
+      "Raconte quelque chose que personne dans cette partie ne sait sur toi.",
+      "Envoie un message à quelqu'un en dehors du jeu que t'aurais jamais osé envoyer."
+    ]
+  },
+  hot: {
+    verite: [
+      // Niveau 1 - encore accessible
+      "C'est quoi ton fantasme le plus sage ?",
+      "T'as déjà été attiré(e) par quelqu'un dans cette partie ?",
+      "C'est quoi le truc le plus coquin que t'aies jamais fait ?",
+      "T'as déjà embrassé quelqu'un par défi et adoré ça ?",
+      "C'est quoi ton endroit préféré pour un baiser ?",
+      "T'as déjà envoyé un message flirty à la mauvaise personne ?",
+      // Niveau 2 - plus chaud
+      "C'est quoi ton plus grand turn-on ?",
+      "T'as déjà eu des pensées sur quelqu'un dans cette partie ? Lesquelles ?",
+      "C'est quoi le truc le plus osé que t'aies jamais fait ?",
+      "T'as déjà eu envie de quelque chose et pas osé le demander ?",
+      "C'est quoi ta définition d'une nuit parfaite ?",
+      "T'as déjà fait quelque chose d'interdit et adoré ça ?",
+      // Niveau 3 - très hot
+      "C'est quoi un fantasme que t'as jamais osé dire ?",
+      "T'as déjà eu une nuit que tu n'oublieras jamais ? Décris sans nommer.",
+      "C'est quoi le truc le plus intime que tu ferais avec quelqu'un que tu viens de rencontrer ?",
+      "T'as déjà envoyé une photo que tu regrettes ? Décris-la.",
+      "C'est quoi le désir que t'oses jamais avouer ?"
+    ],
+    action: [
+      // Niveau 1
+      "Envoie un message flirty à quelqu'un dans le chat.",
+      "Décris en détail ce que tu trouves attirant chez quelqu'un dans cette partie.",
+      "Dis à voix haute ton plus grand turn-on.",
+      // Niveau 2
+      "Envoie une photo de toi en ce moment (peu importe où t'es).",
+      "Raconte en détail ton dernier rêve érotique dont tu te souviens.",
+      "Fais un compliment très personnel à quelqu'un dans le chat.",
+      "Dis ce que tu ferais si t'étais seul(e) avec quelqu'un dans cette partie.",
+      // Niveau 3 - vraiment hot
+      "Enlève un vêtement et envoie une photo (face cachée si tu veux).",
+      "Envoie un message vocal en décrivant ce que tu aimerais faire ce soir.",
+      "Raconte ton fantasme le plus précis avec le plus de détails possible.",
+      "Dis ce que tu attendrais de quelqu'un dans cette partie si la partie se terminait chez toi."
+    ]
+  }
+};
+
 function getQuestions(mode, count) {
   if (mode==="epice") return [...QUESTIONS.epice].sort(()=>Math.random()-.5).slice(0,count);
   const cl=[...QUESTIONS.decouverte.classiques].sort(()=>Math.random()-.5);
@@ -83,14 +143,47 @@ function getQuestions(mode, count) {
 function getDilemmes(intensity, count) {
   return [...DILEMMES[intensity]].sort(()=>Math.random()-.5).slice(0,count);
 }
+
+// Génère une séquence AoV avec progression d'intensité
+function getAovSequence(intensity, playerNames, roundsPerPlayer) {
+  const pool = AOV[intensity];
+  const verites = [...pool.verite].sort(()=>Math.random()-.5);
+  const actions = [...pool.action].sort(()=>Math.random()-.5);
+  const total = playerNames.length * roundsPerPlayer;
+  const sequence = [];
+
+  for (let i = 0; i < total; i++) {
+    const playerIdx = i % playerNames.length;
+    const player = playerNames[playerIdx];
+    // progression: 0-33% léger, 33-66% moyen, 66-100% intense
+    const progress = i / total;
+    const level = progress < 0.33 ? 0 : progress < 0.66 ? 1 : 2;
+    // alterner vérité/action avec légère tendance vers vérité
+    const isVerite = Math.random() > 0.35;
+    const arr = isVerite ? verites : actions;
+    // piocher dans la bonne zone d'intensité
+    const zoneStart = Math.floor(level * arr.length / 3);
+    const zoneEnd = Math.floor((level + 1) * arr.length / 3);
+    const idx = zoneStart + Math.floor(Math.random() * (zoneEnd - zoneStart));
+    sequence.push({
+      player,
+      type: isVerite ? "verite" : "action",
+      text: arr[Math.max(0, Math.min(idx, arr.length-1))],
+      level
+    });
+  }
+  return sequence;
+}
+
 function generateCode() {
   return Math.random().toString(36).substring(2,7).toUpperCase();
 }
 
+// ─── STYLES ───────────────────────────────────────────────────────────────────
 const G = `
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Instrument+Sans:wght@400;500;600&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-  :root{--bg:#0d0d10;--s1:#15151b;--s2:#1e1e27;--s3:#27272f;--border:rgba(255,255,255,0.07);--gold:#d4a853;--gold2:#f0cc7a;--text:#ece8e0;--muted:rgba(236,232,224,0.38);--muted2:rgba(236,232,224,0.65);--green:#6fcf8a;--red:#e07878;}
+  :root{--bg:#0d0d10;--s1:#15151b;--s2:#1e1e27;--s3:#27272f;--border:rgba(255,255,255,0.07);--gold:#d4a853;--gold2:#f0cc7a;--text:#ece8e0;--muted:rgba(236,232,224,0.38);--muted2:rgba(236,232,224,0.65);--green:#6fcf8a;--red:#e07878;--purple:#a78bfa;}
   html,body{height:100%;}
   body{background:var(--bg);color:var(--text);font-family:'Instrument Sans',sans-serif;-webkit-font-smoothing:antialiased;}
   ::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px;}
@@ -106,6 +199,8 @@ const G = `
   .btn-gold:hover:not(:disabled){transform:translateY(-1px);}
   .btn-ghost{background:var(--s2);color:var(--muted2);border:1px solid var(--border);}
   .btn-ghost:hover:not(:disabled){border-color:var(--gold);color:var(--text);}
+  .btn-purple{background:linear-gradient(135deg,#7c3aed,var(--purple));color:#fff;box-shadow:0 4px 20px rgba(124,58,237,.25);}
+  .btn-purple:hover:not(:disabled){transform:translateY(-1px);}
   .btn:disabled{opacity:.35;cursor:not-allowed;}
   .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;}
   .inp{width:100%;padding:13px 16px;border-radius:12px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:15px;outline:none;transition:border-color .2s;margin-bottom:14px;}
@@ -116,6 +211,8 @@ const G = `
   .mode-card::before{content:'';position:absolute;inset:0;opacity:0;background:radial-gradient(circle at 50% 0%,rgba(212,168,83,.12),transparent 70%);transition:opacity .2s;}
   .mode-card:hover::before,.mode-card.sel::before{opacity:1;}
   .mode-card.sel{border-color:var(--gold);}
+  .mode-card.purple-card.sel{border-color:var(--purple);}
+  .mode-card.purple-card::before{background:radial-gradient(circle at 50% 0%,rgba(167,139,250,.12),transparent 70%);}
   .mode-emoji{font-size:24px;margin-bottom:6px;}
   .mode-name{font-size:12px;font-weight:600;}
   .mode-desc{font-size:10px;color:var(--muted);margin-top:3px;}
@@ -142,6 +239,10 @@ const G = `
   .dot:nth-child(2){animation-delay:.2s;}.dot:nth-child(3){animation-delay:.4s;}
   @keyframes blink{0%,80%,100%{opacity:.15;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
   .err{background:rgba(224,120,120,.08);border:1px solid rgba(224,120,120,.2);border-radius:12px;padding:12px 16px;font-size:13px;color:var(--red);margin-bottom:14px;text-align:center;}
+  .refresh-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:11px;border-radius:12px;background:transparent;border:1px solid var(--border);color:var(--muted2);font-family:'Instrument Sans',sans-serif;font-size:13px;cursor:pointer;margin-top:8px;transition:all .18s;}
+  .refresh-btn:hover{border-color:var(--gold);color:var(--text);}
+
+  /* ── QUESTION SCREEN ── */
   .q-screen{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
   .q-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--s1);}
   .q-counter-badge{font-size:12px;font-weight:600;color:var(--gold);background:rgba(212,168,83,.1);border:1px solid rgba(212,168,83,.2);padding:5px 12px;border-radius:20px;}
@@ -154,13 +255,19 @@ const G = `
   .q-textarea{width:100%;min-height:110px;padding:15px 18px;border-radius:16px;border:1.5px solid var(--border);background:var(--s1);color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:15px;resize:none;outline:none;transition:border-color .2s;margin-bottom:14px;line-height:1.6;}
   .q-textarea:focus{border-color:var(--gold);}
   .q-textarea::placeholder{color:var(--muted);}
+
+  /* ── DILEMME ── */
   .d-screen{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
   .d-body{flex:1;padding:24px 20px;display:flex;flex-direction:column;gap:14px;}
   .d-vs{text-align:center;font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;}
   .d-choice{flex:1;padding:20px 18px;border-radius:18px;border:1.5px solid var(--border);background:var(--s2);cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;text-align:center;font-size:15px;font-weight:500;line-height:1.5;color:var(--muted2);min-height:90px;}
   .d-choice:hover{border-color:rgba(212,168,83,.4);color:var(--text);}
   .d-choice.chosen{border-color:var(--gold);background:rgba(212,168,83,.08);color:var(--text);}
+  .d-choice.disabled{opacity:.4;cursor:not-allowed;}
   .d-footer{padding:16px 20px 28px;}
+  .d-waiting{text-align:center;font-size:13px;color:var(--muted);padding:12px 0;}
+
+  /* ── REVEAL ── */
   .rv-screen{height:100vh;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;}
   .rv-top{padding:16px 20px 14px;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;}
   .rv-top-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
@@ -178,6 +285,8 @@ const G = `
   .dr-match{text-align:center;font-size:13px;padding:10px;border-radius:12px;margin-bottom:10px;}
   .dr-match.yes{background:rgba(111,207,138,.08);border:1px solid rgba(111,207,138,.2);color:var(--green);}
   .dr-match.no{background:rgba(212,168,83,.06);border:1px solid rgba(212,168,83,.15);color:var(--gold);}
+
+  /* ── CHAT ── */
   .rv-chat{flex:1;display:flex;flex-direction:column;overflow:hidden;}
   .chat-msgs{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:5px;}
   .chat-bubble-wrap{display:flex;flex-direction:column;animation:msgIn .2s ease;}
@@ -189,6 +298,7 @@ const G = `
   .chat-bubble.me{background:var(--gold);color:#1a1200;border-bottom-right-radius:5px;}
   .chat-bubble.them{background:var(--s2);color:var(--text);border:1px solid var(--border);border-bottom-left-radius:5px;}
   .chat-bubble.emoji-only{background:transparent!important;border:none!important;font-size:26px;padding:3px 5px;}
+  .chat-bubble.system{background:rgba(255,255,255,.04);color:var(--muted2);font-size:12px;border:1px solid var(--border);border-radius:10px;text-align:center;width:100%;max-width:100%;}
   .chat-input-area{padding:8px 14px 14px;border-top:1px solid var(--border);background:var(--s1);flex-shrink:0;}
   .emoji-strip{display:flex;gap:6px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none;}
   .emoji-strip::-webkit-scrollbar{display:none;}
@@ -201,17 +311,49 @@ const G = `
   .chat-send{width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1200;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;flex-shrink:0;}
   .chat-send:hover:not(:disabled){transform:scale(1.05);}
   .chat-send:disabled{opacity:.35;cursor:not-allowed;}
+
+  /* ── ACTION OU VÉRITÉ ── */
+  .aov-screen{height:100vh;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;}
+  .aov-header{padding:14px 20px;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
+  .aov-badge-soft{font-size:11px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-weight:600;}
+  .aov-badge-hot{font-size:11px;color:var(--red);letter-spacing:2px;text-transform:uppercase;font-weight:600;}
+  .aov-progress{height:2px;background:var(--s3);border-radius:1px;overflow:hidden;margin-top:10px;}
+  .aov-progress-fill{height:100%;border-radius:1px;transition:width .5s;}
+  .aov-progress-fill.soft{background:linear-gradient(90deg,var(--gold),var(--gold2));}
+  .aov-progress-fill.hot{background:linear-gradient(90deg,#e07878,#f0cc7a);}
+  .aov-card{padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .aov-player{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+  .aov-type-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;margin-bottom:10px;}
+  .aov-type-badge.verite{background:rgba(212,168,83,.1);color:var(--gold);border:1px solid rgba(212,168,83,.2);}
+  .aov-type-badge.action{background:rgba(224,120,120,.1);color:var(--red);border:1px solid rgba(224,120,120,.2);}
+  .aov-question{font-family:'Fraunces',serif;font-size:18px;font-weight:300;font-style:italic;line-height:1.5;color:var(--text);}
+  .aov-intensity{display:flex;gap:4px;margin-top:8px;}
+  .aov-dot{width:6px;height:6px;border-radius:50%;}
+  .aov-dot.active{background:var(--gold);}
+  .aov-dot.inactive{background:var(--s3);}
+  .aov-actions{padding:10px 16px;flex-shrink:0;display:flex;gap:8px;}
+  .aov-choice-btn{flex:1;padding:13px;border-radius:14px;border:1.5px solid var(--border);background:var(--s2);color:var(--muted2);font-family:'Instrument Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center;}
+  .aov-choice-btn:hover{border-color:var(--gold);color:var(--text);}
+  .aov-choice-btn.active{border-color:var(--gold);background:rgba(212,168,83,.08);color:var(--gold);}
+  .aov-choice-btn.action-active{border-color:var(--red);background:rgba(224,120,120,.08);color:var(--red);}
+  .aov-joker{padding:8px 16px;flex-shrink:0;}
+  .joker-btn{width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--purple);background:rgba(167,139,250,.06);color:var(--purple);font-family:'Instrument Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;}
+  .joker-btn:hover:not(:disabled){background:rgba(167,139,250,.12);}
+  .joker-btn:disabled{opacity:.3;cursor:not-allowed;}
+  .joker-used{text-align:center;font-size:11px;color:var(--muted);padding:8px 16px;}
+  .aov-next-wrap{padding:8px 16px;flex-shrink:0;}
+  .ready-indicator{text-align:center;font-size:12px;color:var(--muted);padding:6px 0;}
+
+  /* ── END ── */
   .end-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px;text-align:center;}
   .end-glow{font-size:64px;margin-bottom:20px;filter:drop-shadow(0 0 20px rgba(212,168,83,.5));animation:float 3s ease-in-out infinite;}
   @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
   .noise{position:fixed;inset:0;pointer-events:none;z-index:999;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");opacity:.5;}
-  .refresh-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:11px;border-radius:12px;background:transparent;border:1px solid var(--border);color:var(--muted2);font-family:'Instrument Sans',sans-serif;font-size:13px;cursor:pointer;margin-top:8px;transition:all .18s;}
-  .refresh-btn:hover{border-color:var(--gold);color:var(--text);}
 `;
 
 const EMOJIS = ["😂","🥹","😳","🔥","💛","👀","😮","❤️","💀","🫶","😭","🤣"];
 
-function ChatPanel({ myName, gameId, qIdx }) {
+function ChatPanel({ myName, gameId, qIdx, placeholder = "Écris ta réaction…" }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const msgsRef = useRef(null);
@@ -242,14 +384,15 @@ function ChatPanel({ myName, gameId, qIdx }) {
   return (
     <div className="rv-chat">
       <div className="chat-msgs" ref={msgsRef}>
-        {messages.length === 0 && <div style={{textAlign:"center",color:"var(--muted)",fontSize:12,padding:"10px 0"}}>Réagissez…</div>}
+        {messages.length === 0 && <div style={{textAlign:"center",color:"var(--muted)",fontSize:12,padding:"10px 0"}}>Le chat est là pour réagir…</div>}
         {messages.map(m => {
           const isMe = m.sender === myName;
           const eo = isEmojiOnly(m.text);
+          const isSystem = m.sender === "system";
           return (
-            <div key={m.id} className={`chat-bubble-wrap ${isMe?"me":"them"}`}>
-              {!isMe && <div className="chat-sender">{m.sender}</div>}
-              <div className={`chat-bubble ${isMe?"me":"them"} ${eo?"emoji-only":""}`}>{m.text}</div>
+            <div key={m.id} className={`chat-bubble-wrap ${isSystem ? "" : isMe?"me":"them"}`}>
+              {!isMe && !isSystem && <div className="chat-sender">{m.sender}</div>}
+              <div className={`chat-bubble ${isSystem ? "system" : isMe?"me":"them"} ${eo?"emoji-only":""}`}>{m.text}</div>
             </div>
           );
         })}
@@ -259,7 +402,7 @@ function ChatPanel({ myName, gameId, qIdx }) {
           {EMOJIS.map(e => <button key={e} className="emoji-chip" onClick={() => send(e)}>{e}</button>)}
         </div>
         <div className="chat-row">
-          <input className="chat-inp" placeholder="Écris ta réaction…" value={input}
+          <input className="chat-inp" placeholder={placeholder} value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === "Enter" && send(input)} />
           <button className="chat-send" disabled={!input.trim()} onClick={() => send(input)}>↑</button>
@@ -269,6 +412,7 @@ function ChatPanel({ myName, gameId, qIdx }) {
   );
 }
 
+// ─── HOME ─────────────────────────────────────────────────────────────────────
 function HomeScreen({ onCreate, onJoin }) {
   return (
     <div className="screen">
@@ -284,6 +428,7 @@ function HomeScreen({ onCreate, onJoin }) {
   );
 }
 
+// ─── CREATE ───────────────────────────────────────────────────────────────────
 function CreateScreen({ onStart, onBack }) {
   const [mode, setMode] = useState(null);
   const [count, setCount] = useState(10);
@@ -291,26 +436,58 @@ function CreateScreen({ onStart, onBack }) {
   const [customQs, setCustomQs] = useState([]);
   const [cInput, setCInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // AoV specific
+  const [players, setPlayers] = useState([]);
+  const [playerInput, setPlayerInput] = useState("");
+  const [roundsPerPlayer, setRoundsPerPlayer] = useState(3);
 
   const MODES = [
     {id:"decouverte",emoji:"💛",name:"Découverte",desc:"Se connaître"},
     {id:"epice",emoji:"🌶️",name:"Épicé",desc:"Questions intimes"},
     {id:"dilemme_soft",emoji:"🤔",name:"Dilemme",desc:"Soft"},
     {id:"dilemme_epice",emoji:"🔥",name:"Dilemme",desc:"Épicé"},
+    {id:"aov_soft",emoji:"🎭",name:"Action/Vérité",desc:"Soft",purple:true},
+    {id:"aov_hot",emoji:"🌶️🎭",name:"Action/Vérité",desc:"Hot 🔥",purple:true},
   ];
+
   const isDilemme = mode==="dilemme_soft"||mode==="dilemme_epice";
+  const isAov = mode==="aov_soft"||mode==="aov_hot";
   const addQ = () => { if (cInput.trim()&&customQs.length<2){setCustomQs([...customQs,cInput.trim()]);setCInput("");} };
+  const addPlayer = () => { if (playerInput.trim()&&players.length<6){setPlayers([...players,playerInput.trim()]);setPlayerInput("");} };
 
   async function handleCreate() {
     setLoading(true);
     const code = generateCode();
-    let questions=[], dilemmes=[];
-    if (isDilemme) dilemmes = getDilemmes(mode==="dilemme_epice"?"epice":"soft", count);
-    else { const qs=getQuestions(mode,count); questions=[...customQs,...qs].slice(0,count+customQs.length); }
-    const game = await dbInsert({ id:code, mode, questions, dilemmes, host_name:name.trim(), guest_name:null, host_done:false, guest_done:false, host_answers:[], guest_answers:[], reveal_started:false, reveal_index:0 });
+    let questions=[], dilemmes=[], aovSequence=[], aovPlayers=[];
+
+    if (isDilemme) {
+      dilemmes = getDilemmes(mode==="dilemme_epice"?"epice":"soft", count);
+    } else if (isAov) {
+      const allPlayers = [name.trim(), ...players];
+      aovPlayers = allPlayers;
+      aovSequence = getAovSequence(mode==="aov_hot"?"hot":"soft", allPlayers, roundsPerPlayer);
+    } else {
+      const qs=getQuestions(mode,count);
+      questions=[...customQs,...qs].slice(0,count+customQs.length);
+    }
+
+    const game = await dbInsert({
+      id: code, mode, questions, dilemmes,
+      aov_sequence: aovSequence,
+      aov_players: aovPlayers,
+      aov_index: 0,
+      aov_ready: [],
+      aov_jokers_used: [],
+      host_name: name.trim(), guest_name: null,
+      host_done: false, guest_done: false,
+      host_answers: [], guest_answers: [],
+      reveal_started: false, reveal_index: 0
+    });
     setLoading(false);
     if (game) onStart({...game, myRole:"host", myName:name.trim()});
   }
+
+  const canCreate = mode && name.trim() && (!isAov || players.length >= 1);
 
   return (
     <div className="screen" style={{justifyContent:"flex-start",paddingTop:36}}>
@@ -322,30 +499,61 @@ function CreateScreen({ onStart, onBack }) {
         <div className="lbl">Mode de jeu</div>
         <div className="mode-grid">
           {MODES.map(m=>(
-            <div key={m.id} className={`mode-card ${mode===m.id?"sel":""}`} onClick={()=>setMode(m.id)}>
+            <div key={m.id} className={`mode-card ${m.purple?"purple-card":""} ${mode===m.id?"sel":""}`} onClick={()=>setMode(m.id)}>
               <div className="mode-emoji">{m.emoji}</div>
               <div className="mode-name">{m.name}</div>
               <div className="mode-desc">{m.desc}</div>
             </div>
           ))}
         </div>
-        <div className="lbl">Nombre de questions</div>
-        <div className="count-row">
-          {[5,10,15].map(n=><button key={n} className={`cnt-btn ${count===n?"sel":""}`} onClick={()=>setCount(n)}>{n}</button>)}
-        </div>
-        {!isDilemme && <>
+
+        {/* Options selon le mode */}
+        {!isAov && <>
+          <div className="lbl">Nombre de questions</div>
+          <div className="count-row">
+            {[5,10,15].map(n=><button key={n} className={`cnt-btn ${count===n?"sel":""}`} onClick={()=>setCount(n)}>{n}</button>)}
+          </div>
+        </>}
+
+        {isAov && <>
+          <div className="lbl">Joueurs (toi + 1 à 5 autres)</div>
+          {players.length < 5 && (
+            <div className="cq-row">
+              <input className="inp" placeholder="Prénom d'un joueur..." value={playerInput} onChange={e=>setPlayerInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addPlayer()} style={{marginBottom:0}}/>
+              <button className="cq-add-btn" onClick={addPlayer}>+</button>
+            </div>
+          )}
+          {players.map((p,i)=>(
+            <div key={i} className="cq-item">
+              <span>👤 {p}</span>
+              <button className="cq-rm" onClick={()=>setPlayers(players.filter((_,j)=>j!==i))}>×</button>
+            </div>
+          ))}
+          <div style={{marginTop:14}}>
+            <div className="lbl">Questions par joueur</div>
+            <div className="count-row">
+              {[3,5,7].map(n=><button key={n} className={`cnt-btn ${roundsPerPlayer===n?"sel":""}`} onClick={()=>setRoundsPerPlayer(n)}>{n}</button>)}
+            </div>
+          </div>
+        </>}
+
+        {!isDilemme && !isAov && <>
           <div className="divider"/>
           <div className="cq-label">Questions perso · {customQs.length}/2 <span style={{color:"var(--muted)",fontWeight:400}}>(optionnel)</span></div>
-          {customQs.length<2&&<div className="cq-row"><input className="inp" placeholder="Ta question perso..." value={cInput} onChange={e=>setCInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addQ()}/><button className="cq-add-btn" onClick={addQ}>+</button></div>}
+          {customQs.length<2&&<div className="cq-row"><input className="inp" placeholder="Ta question perso..." value={cInput} onChange={e=>setCInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addQ()} style={{marginBottom:0}}/><button className="cq-add-btn" onClick={addQ}>+</button></div>}
           {customQs.map((q,i)=><div key={i} className="cq-item"><span>{q}</span><button className="cq-rm" onClick={()=>setCustomQs(customQs.filter((_,j)=>j!==i))}>×</button></div>)}
         </>}
-        <button className="btn btn-gold" style={{marginTop:20}} disabled={!mode||!name.trim()||loading} onClick={handleCreate}>{loading?"Création…":"Créer la partie →"}</button>
+
+        <button className={`btn ${isAov?"btn-purple":"btn-gold"}`} style={{marginTop:20}} disabled={!canCreate||loading} onClick={handleCreate}>
+          {loading?"Création…":"Créer la partie →"}
+        </button>
         <button className="btn btn-ghost" onClick={onBack}>← Retour</button>
       </div>
     </div>
   );
 }
 
+// ─── JOIN ─────────────────────────────────────────────────────────────────────
 function JoinScreen({ onJoin, onBack }) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -378,6 +586,7 @@ function JoinScreen({ onJoin, onBack }) {
   );
 }
 
+// ─── WAITING ──────────────────────────────────────────────────────────────────
 function WaitingScreen({ game, myName, onStart, onBack }) {
   const [guestJoined, setGuestJoined] = useState(!!game.guest_name);
   useEffect(() => {
@@ -407,7 +616,7 @@ function WaitingScreen({ game, myName, onStart, onBack }) {
   );
 }
 
-// ── Stocke toutes les réponses localement et envoie tout en une fois à la fin ──
+// ─── QUESTION SCREEN ──────────────────────────────────────────────────────────
 function QuestionScreen({ game, myRole, idx, total, allAnswers, onAnswer }) {
   const [answer, setAnswer] = useState("");
   const q = game.questions[idx];
@@ -416,10 +625,8 @@ function QuestionScreen({ game, myRole, idx, total, allAnswers, onAnswer }) {
     if (!answer.trim()) return;
     const updated = [...allAnswers, answer.trim()];
     if (updated.length >= total) {
-      // Envoie tout en une fois avec la fonction RPC
       await dbFinishPlayer(game.id, myRole, updated);
     } else {
-      // Sauvegarde partielle
       const key = myRole==="host"?"host_answers":"guest_answers";
       await dbPatch(game.id, {[key]: updated});
     }
@@ -444,13 +651,40 @@ function QuestionScreen({ game, myRole, idx, total, allAnswers, onAnswer }) {
   );
 }
 
-function DilemmeScreen({ game, myRole, idx, total, allAnswers, onAnswer }) {
+// ─── DILEMME SCREEN (fix: attendre les deux) ──────────────────────────────────
+function DilemmeScreen({ game, myRole, myName, idx, total, allAnswers, onAnswer }) {
   const [chosen, setChosen] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [liveGame, setLiveGame] = useState(game);
   const d = game.dilemmes[idx];
   const intensity = game.mode==="dilemme_epice"?"epice":"soft";
 
+  useEffect(() => {
+    setChosen(null);
+    setSubmitted(false);
+    setLiveGame(game);
+  }, [idx]);
+
+  useEffect(() => {
+    if (!submitted) return;
+    const iv = setInterval(async () => {
+      const g = await dbGet(game.id);
+      if (g) {
+        setLiveGame(g);
+        const myAnswers = myRole==="host" ? g.host_answers : g.guest_answers;
+        const theirAnswers = myRole==="host" ? g.guest_answers : g.host_answers;
+        if (myAnswers?.length > idx && theirAnswers?.length > idx) {
+          clearInterval(iv);
+          onAnswer(chosen);
+        }
+      }
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [submitted]);
+
   async function submit() {
     if (!chosen) return;
+    setSubmitted(true);
     const updated = [...allAnswers, chosen];
     if (updated.length >= total) {
       await dbFinishPlayer(game.id, myRole, updated);
@@ -458,9 +692,11 @@ function DilemmeScreen({ game, myRole, idx, total, allAnswers, onAnswer }) {
       const key = myRole==="host"?"host_answers":"guest_answers";
       await dbPatch(game.id, {[key]: updated});
     }
-    onAnswer(chosen);
-    setChosen(null);
   }
+
+  const otherName = myRole==="host"?(game.guest_name||"Partenaire"):game.host_name;
+  const theirAnswers = myRole==="host" ? liveGame.guest_answers : liveGame.host_answers;
+  const theirDone = theirAnswers?.length > idx;
 
   return (
     <div className="d-screen">
@@ -470,20 +706,27 @@ function DilemmeScreen({ game, myRole, idx, total, allAnswers, onAnswer }) {
       </div>
       <div className="q-body" style={{padding:"20px 20px 0"}}>
         <div className="q-progress"><div className="q-progress-fill" style={{width:`${(idx/total)*100}%`}}/></div>
-        <div style={{fontFamily:"'Fraunces',serif",fontSize:20,fontWeight:300,fontStyle:"italic",textAlign:"center",padding:"8px 0"}}>T'aurais plutôt…</div>
+        <div style={{fontFamily:"'Fraunces',serif",fontSize:20,fontWeight:300,fontStyle:"italic",textAlign:"center",padding:"8px 0"}}>Tu préfères…</div>
       </div>
       <div className="d-body">
-        <div className={`d-choice ${chosen==="a"?"chosen":""}`} onClick={()=>setChosen("a")}>{d.a}</div>
+        <div className={`d-choice ${chosen==="a"?"chosen":""} ${submitted?"disabled":""}`} onClick={()=>!submitted&&setChosen("a")}>{d.a}</div>
         <div className="d-vs">ou</div>
-        <div className={`d-choice ${chosen==="b"?"chosen":""}`} onClick={()=>setChosen("b")}>{d.b}</div>
+        <div className={`d-choice ${chosen==="b"?"chosen":""} ${submitted?"disabled":""}`} onClick={()=>!submitted&&setChosen("b")}>{d.b}</div>
       </div>
       <div className="d-footer">
-        <button className="btn btn-gold" disabled={!chosen} onClick={submit}>{idx+1===total?"Terminer ✓":"Suivant →"}</button>
+        {!submitted && <button className="btn btn-gold" disabled={!chosen} onClick={submit}>Valider →</button>}
+        {submitted && !theirDone && (
+          <div className="d-waiting">
+            <div className="dots" style={{margin:"0 0 8px"}}><div className="dot"/><div className="dot"/><div className="dot"/></div>
+            En attente que {otherName} choisisse…
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+// ─── WAITING REVEAL ───────────────────────────────────────────────────────────
 function WaitingRevealScreen({ game, myName, myRole, onReveal }) {
   const [liveGame, setLiveGame] = useState(game);
   const [refreshing, setRefreshing] = useState(false);
@@ -491,10 +734,7 @@ function WaitingRevealScreen({ game, myName, myRole, onReveal }) {
 
   async function fetchLatest() {
     const g = await dbGet(game.id);
-    if (g) {
-      setLiveGame(g);
-      if (g.reveal_started) onReveal(g);
-    }
+    if (g) { setLiveGame(g); if (g.reveal_started) onReveal(g); }
     return g;
   }
 
@@ -511,12 +751,6 @@ function WaitingRevealScreen({ game, myName, myRole, onReveal }) {
     onReveal({...liveGame, reveal_started:true});
   }
 
-  async function handleRefresh() {
-    setRefreshing(true);
-    await fetchLatest();
-    setRefreshing(false);
-  }
-
   return (
     <div className="screen">
       <div style={{textAlign:"center",marginBottom:4}}><div className="wordmark" style={{fontSize:36}}>Reveal</div></div>
@@ -529,7 +763,7 @@ function WaitingRevealScreen({ game, myName, myRole, onReveal }) {
         {!otherDone&&<>
           <p style={{fontSize:13,color:"var(--muted)",textAlign:"center",marginTop:8}}>En attente que {otherName} termine…</p>
           <div className="dots"><div className="dot"/><div className="dot"/><div className="dot"/></div>
-          <button className="refresh-btn" onClick={handleRefresh}>{refreshing?"…":"🔄 Actualiser"}</button>
+          <button className="refresh-btn" onClick={async()=>{setRefreshing(true);await fetchLatest();setRefreshing(false);}}>{refreshing?"…":"🔄 Actualiser"}</button>
         </>}
         {otherDone&&myRole==="host"&&<>
           <p style={{fontSize:13,color:"var(--muted2)",textAlign:"center",margin:"10px 0 16px"}}>Tout le monde est prêt !</p>
@@ -537,13 +771,14 @@ function WaitingRevealScreen({ game, myName, myRole, onReveal }) {
         </>}
         {otherDone&&myRole==="guest"&&<>
           <p style={{fontSize:13,color:"var(--muted)",textAlign:"center",marginTop:10}}>En attente que l'hôte lance le reveal…</p>
-          <button className="refresh-btn" onClick={handleRefresh}>{refreshing?"…":"🔄 Actualiser"}</button>
+          <button className="refresh-btn" onClick={async()=>{setRefreshing(true);await fetchLatest();setRefreshing(false);}}>{refreshing?"…":"🔄 Actualiser"}</button>
         </>}
       </div>
     </div>
   );
 }
 
+// ─── REVEAL SCREENS ───────────────────────────────────────────────────────────
 function RevealScreen({ game, myRole, myName, revealIdx, onNext, isLast }) {
   const [liveGame, setLiveGame] = useState(game);
   const otherName = myRole==="host"?(game.guest_name||"Partenaire"):game.host_name;
@@ -615,7 +850,7 @@ function DilemmeRevealScreen({ game, myRole, myName, revealIdx, onNext, isLast }
         </div>
         <div className="rv-progress"><div className="rv-progress-fill" style={{width:`${((revealIdx+1)/game.dilemmes.length)*100}%`}}/></div>
       </div>
-      <div className="rv-question-box"><div className="rv-question-text">T'aurais plutôt… {d.a} <em>ou</em> {d.b} ?</div></div>
+      <div className="rv-question-box"><div className="rv-question-text">Tu préfères… {d.a} <em>ou</em> {d.b} ?</div></div>
       <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
         <div className={`dr-match ${match?"yes":"no"}`}>{match?"✓ Vous avez choisi pareil !":"✗ Vous êtes pas d'accord — débattez !"}</div>
         <div className="rv-answers" style={{padding:0,border:"none"}}>
@@ -631,19 +866,143 @@ function DilemmeRevealScreen({ game, myRole, myName, revealIdx, onNext, isLast }
   );
 }
 
+// ─── ACTION OU VÉRITÉ SCREEN ──────────────────────────────────────────────────
+function AovScreen({ game, myName, myRole }) {
+  const [liveGame, setLiveGame] = useState(game);
+  const [myReady, setMyReady] = useState(false);
+  const [jokerUsed, setJokerUsed] = useState(false);
+  const [inverted, setInverted] = useState(false);
+
+  const isHot = game.mode === "aov_hot";
+  const seq = liveGame.aov_sequence || [];
+  const idx = liveGame.aov_index || 0;
+  const current = seq[idx];
+  const total = seq.length;
+  const readyList = liveGame.aov_ready || [];
+  const jokersUsed = liveGame.aov_jokers_used || [];
+
+  // Poll game state
+  useEffect(() => {
+    const iv = setInterval(async () => {
+      const g = await dbGet(game.id);
+      if (g) setLiveGame(g);
+    }, 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Reset ready state on new question
+  useEffect(() => {
+    setMyReady(readyList.includes(myName));
+  }, [idx]);
+
+  if (!current) return <EndScreen theirName="" onRestart={() => window.location.reload()} />;
+
+  const isMyTurn = current.player === myName;
+  const otherReady = readyList.filter(n => n !== myName).length > 0;
+  const bothReady = readyList.length >= 2;
+  const myJokerUsed = jokersUsed.includes(myName);
+  const otherJokerUsed = jokersUsed.some(n => n !== myName);
+
+  const activePlayer = inverted
+    ? (current.player === myName
+        ? (game.aov_players || []).find(p => p !== myName) || "L'autre"
+        : myName)
+    : current.player;
+
+  async function markReady() {
+    if (myReady) return;
+    setMyReady(true);
+    const newReady = [...new Set([...readyList, myName])];
+    const patch = { aov_ready: newReady };
+    if (newReady.length >= 2) {
+      patch.aov_index = idx + 1;
+      patch.aov_ready = [];
+    }
+    await dbPatch(game.id, patch);
+  }
+
+  async function useJoker() {
+    if (myJokerUsed || otherJokerUsed) return;
+    setJokerUsed(true);
+    setInverted(true);
+    const newJokers = [...jokersUsed, myName];
+    await dbPatch(game.id, { aov_jokers_used: newJokers });
+    await dbInsertMsg({ game_id: game.id, sender: "system", text: `🃏 ${myName} a utilisé sa carte Inversion !`, question_index: idx });
+  }
+
+  const progress = (idx / total) * 100;
+  const level = current.level || 0;
+
+  return (
+    <div className="aov-screen">
+      <div className="aov-header">
+        <div className={isHot ? "aov-badge-hot" : "aov-badge-soft"}>
+          {isHot ? "🌶️ Hot" : "🎭 Soft"}
+        </div>
+        <div style={{fontSize:12,color:"var(--muted)"}}>Tour {idx+1} / {total}</div>
+      </div>
+      <div style={{padding:"0 20px 10px",background:"var(--s1)",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+        <div className="aov-progress">
+          <div className={`aov-progress-fill ${isHot?"hot":"soft"}`} style={{width:`${progress}%`}}/>
+        </div>
+      </div>
+
+      <div className="aov-card">
+        <div className="aov-player">👤 {activePlayer}{isMyTurn && !inverted ? " (toi)" : activePlayer === myName ? " (toi — inversé 🃏)" : ""}</div>
+        <div className={`aov-type-badge ${current.type}`}>
+          {current.type === "verite" ? "💬 Vérité" : "⚡ Action"}
+        </div>
+        <div className="aov-question">{current.text}</div>
+        <div className="aov-intensity">
+          {[0,1,2].map(l=><div key={l} className={`aov-dot ${l<=level?"active":"inactive"}`}/>)}
+        </div>
+      </div>
+
+      {/* Joker */}
+      <div className="aov-joker">
+        {!myJokerUsed && !otherJokerUsed ? (
+          <button className="joker-btn" onClick={useJoker}>
+            🃏 Utiliser ma carte Inversion
+          </button>
+        ) : myJokerUsed ? (
+          <div className="joker-used">🃏 Tu as utilisé ton joker</div>
+        ) : (
+          <div className="joker-used">🃏 {jokersUsed[0]} a utilisé son joker — le tien est annulé</div>
+        )}
+      </div>
+
+      {/* Prêt pour la suite */}
+      <div className="aov-next-wrap">
+        {!myReady ? (
+          <button className="btn btn-gold" onClick={markReady}>✓ Prêt pour la suite</button>
+        ) : (
+          <div className="ready-indicator">
+            {otherReady ? "Les deux sont prêts, passage à la suite…" : "En attente de l'autre joueur…"}
+            <div className="dots" style={{margin:"6px 0 0"}}><div className="dot"/><div className="dot"/><div className="dot"/></div>
+          </div>
+        )}
+      </div>
+
+      <ChatPanel myName={myName} gameId={game.id} qIdx={idx} placeholder="Réponds ou réagis ici…" />
+    </div>
+  );
+}
+
+// ─── END ──────────────────────────────────────────────────────────────────────
 function EndScreen({ theirName, onRestart }) {
   return (
     <div className="end-screen">
       <div className="end-glow">✦</div>
       <div className="wordmark" style={{fontSize:38}}>Reveal</div>
       <p style={{color:"var(--muted2)",fontSize:15,lineHeight:1.7,margin:"18px 0 32px",maxWidth:280}}>
-        Partie terminée avec <strong style={{color:"var(--text)"}}>{theirName}</strong>.<br/>J'espère que vous vous connaissez un peu mieux. 💛
+        {theirName ? <>Partie terminée avec <strong style={{color:"var(--text)"}}>{theirName}</strong>.<br/>J'espère que vous vous connaissez un peu mieux. 💛</> : "Partie terminée ! 🎉"}
       </p>
       <button className="btn btn-gold" style={{maxWidth:300,width:"100%"}} onClick={onRestart}>🔄 Nouvelle partie</button>
     </div>
   );
 }
 
+// ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState("home");
   const [game, setGame] = useState(null);
@@ -654,6 +1013,7 @@ export default function App() {
   const [allAnswers, setAllAnswers] = useState([]);
 
   const isDilemme = game&&(game.mode==="dilemme_soft"||game.mode==="dilemme_epice");
+  const isAov = game&&(game.mode==="aov_soft"||game.mode==="aov_hot");
   const total = game?(isDilemme?game.dilemmes.length:game.questions.length):0;
   const otherName = game?(myRole==="host"?(game.guest_name||"Ton partenaire"):game.host_name):"";
 
@@ -673,16 +1033,23 @@ export default function App() {
     setGame(null);setMyRole(null);setMyName("");setCurrentQ(0);setRevealIdx(0);setAllAnswers([]);setScreen("home");
   }
 
+  function getStartScreen(g) {
+    if (g.mode==="aov_soft"||g.mode==="aov_hot") return "aov";
+    if (g.mode==="dilemme_soft"||g.mode==="dilemme_epice") return "dilemme";
+    return "question";
+  }
+
   return (
     <>
       <style>{G}</style>
       <div className="noise"/>
       {screen==="home"&&<HomeScreen onCreate={()=>setScreen("create")} onJoin={()=>setScreen("join")}/>}
       {screen==="create"&&<CreateScreen onStart={g=>{setGame(g);setMyRole("host");setMyName(g.myName);setCurrentQ(0);setRevealIdx(0);setAllAnswers([]);setScreen("waiting");}} onBack={()=>setScreen("home")}/>}
-      {screen==="join"&&<JoinScreen onJoin={g=>{setGame(g);setMyRole("guest");setMyName(g.myName);setCurrentQ(0);setRevealIdx(0);setAllAnswers([]);setScreen(g.mode?.startsWith("dilemme")?"dilemme":"question");}} onBack={()=>setScreen("home")}/>}
-      {screen==="waiting"&&game&&<WaitingScreen game={game} myName={myName} onStart={()=>setScreen(isDilemme?"dilemme":"question")} onBack={()=>setScreen("home")}/>}
+      {screen==="join"&&<JoinScreen onJoin={g=>{setGame(g);setMyRole("guest");setMyName(g.myName);setCurrentQ(0);setRevealIdx(0);setAllAnswers([]);setScreen(getStartScreen(g));}} onBack={()=>setScreen("home")}/>}
+      {screen==="waiting"&&game&&<WaitingScreen game={game} myName={myName} onStart={()=>setScreen(getStartScreen(game))} onBack={()=>setScreen("home")}/>}
       {screen==="question"&&game&&<QuestionScreen key={currentQ} game={game} myRole={myRole} idx={currentQ} total={total} allAnswers={allAnswers} onAnswer={handleAnswer}/>}
-      {screen==="dilemme"&&game&&<DilemmeScreen key={currentQ} game={game} myRole={myRole} idx={currentQ} total={total} allAnswers={allAnswers} onAnswer={handleAnswer}/>}
+      {screen==="dilemme"&&game&&<DilemmeScreen key={currentQ} game={game} myRole={myRole} myName={myName} idx={currentQ} total={total} allAnswers={allAnswers} onAnswer={handleAnswer}/>}
+      {screen==="aov"&&game&&<AovScreen game={game} myName={myName} myRole={myRole}/>}
       {screen==="waitingReveal"&&game&&<WaitingRevealScreen game={game} myName={myName} myRole={myRole} onReveal={g=>{if(g)setGame(g);setRevealIdx(0);setScreen(isDilemme?"revealDilemme":"reveal");}}/>}
       {screen==="reveal"&&game&&<RevealScreen game={game} myRole={myRole} myName={myName} revealIdx={revealIdx} onNext={handleNext} isLast={revealIdx+1===total}/>}
       {screen==="revealDilemme"&&game&&<DilemmeRevealScreen game={game} myRole={myRole} myName={myName} revealIdx={revealIdx} onNext={handleNext} isLast={revealIdx+1===total}/>}
