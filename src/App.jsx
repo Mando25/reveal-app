@@ -1,4 +1,4 @@
-// v4
+// v5
 import { useState, useEffect, useRef } from "react";
 
 const SUPABASE_URL = "https://tzhrnnnpataoxklbtogn.supabase.co";
@@ -27,7 +27,6 @@ async function dbInsertMsg(msg) {
   try { await fetch(`${SUPABASE_URL}/rest/v1/messages`, { method:"POST", headers:H, body:JSON.stringify(msg) }); } catch(e) {}
 }
 
-// ─── QUESTIONS ────────────────────────────────────────────────────────────────
 const QUESTIONS = {
   decouverte: {
     classiques: [
@@ -51,153 +50,162 @@ const DILEMMES = {
   ]
 };
 
-// ─── ACTION OU VÉRITÉ — pool massif ──────────────────────────────────────────
-const AOV = {
+// ─── ACTION OU VÉRITÉ ─────────────────────────────────────────────────────────
+const AOV_VERITE = {
+  soft: [
+    "C'est quoi le truc le plus gênant que t'aies jamais fait en public ?",
+    "T'as déjà eu le béguin pour quelqu'un que tu n'aurais pas dû ?",
+    "C'est quoi ton défaut que tu assumes complètement ?",
+    "T'as déjà menti à quelqu'un dans cette partie ? Sur quoi ?",
+    "C'est quoi le compliment que tu aimerais recevoir mais que personne te fait ?",
+    "T'as déjà été jaloux(se) de quelqu'un ici ? De quoi ?",
+    "C'est quoi la chose la plus courageuse que t'aies jamais faite ?",
+    "T'as un secret que t'as jamais dit à personne ?",
+    "C'est quoi le truc le plus stupide que t'aies fait par amour ?",
+    "T'as déjà fait quelque chose d'embarrassant que personne ne sait ?",
+    "C'est quoi ta plus grande peur dans une relation ?",
+    "T'as déjà dit oui alors que tu voulais dire non ?",
+    "C'est quoi le mensonge que tu répètes le plus souvent ?",
+    "T'as déjà été amoureux(se) sans le dire ? De qui ?",
+    "C'est quoi la chose dont tu es secrètement fier(e) mais que tu n'avoues pas ?",
+    "C'est quoi ton plus grand regret dans une relation ?",
+    "T'as déjà dit 'je t'aime' sans le penser vraiment ?",
+    "C'est quoi la chose la plus égoïste que t'aies jamais faite ?",
+    "T'as déjà eu envie d'embrasser quelqu'un dans ce groupe ?",
+    "C'est quoi ton plus grand complexe ?",
+    "T'as déjà trahi la confiance de quelqu'un ? Comment ?",
+    "C'est quoi la dernière fois que t'as vraiment pleuré et pourquoi ?",
+    "T'as déjà ressenti quelque chose pour quelqu'un que t'aurais pas dû ?",
+    "C'est quoi la pensée que t'oses jamais dire à voix haute ?",
+    "T'as déjà fait semblant d'être quelqu'un d'autre pour plaire à quelqu'un ?",
+    "C'est quoi la chose la plus intime que t'aies jamais partagée avec quelqu'un ?",
+    "T'as déjà voulu quitter une situation mais t'es resté(e) par peur ?",
+    "C'est quoi le moment où tu t'es senti(e) le plus seul(e) malgré les gens autour ?",
+    "T'as déjà eu honte de quelque chose que tu as fait et tu te pardonnes pas encore ?",
+    "C'est quoi la chose que tu voudrais changer dans ta façon d'aimer ?"
+  ],
+  hot: [
+    "C'est quoi ton fantasme le plus sage ?",
+    "T'as déjà été attiré(e) par quelqu'un dans ce groupe ?",
+    "C'est quoi le truc le plus flirty que t'aies jamais fait ?",
+    "T'as déjà embrassé quelqu'un par défi et adoré ça ?",
+    "C'est quoi ton endroit préféré pour un baiser ?",
+    "T'as déjà envoyé un message flirty à la mauvaise personne ?",
+    "C'est quoi la dernière fois que t'as vraiment eu envie de quelqu'un ?",
+    "T'as déjà fantasmé sur quelqu'un dans ce groupe ?",
+    "C'est quoi le look qui te rend fou/folle chez quelqu'un ?",
+    "T'as déjà eu un crush secret que personne ne sait ?",
+    "C'est quoi la chose la plus romantique que quelqu'un ait jamais faite pour toi ?",
+    "T'as déjà flirté avec quelqu'un sans t'en rendre compte ?",
+    "C'est quoi ton signe d'intérêt quand quelqu'un te plaît ?",
+    "C'est quoi ton rituel de séduction ?",
+    "C'est quoi ton plus grand turn-on ?",
+    "T'as déjà eu des pensées très précises sur quelqu'un dans ce groupe ?",
+    "C'est quoi le truc le plus osé que t'aies jamais fait ?",
+    "T'as déjà eu envie de quelque chose et pas osé le demander ? C'était quoi ?",
+    "C'est quoi ta définition d'une nuit parfaite avec quelqu'un ?",
+    "T'as déjà fait quelque chose d'interdit et adoré ça ?",
+    "C'est quoi le truc qui te rend fou/folle chez quelqu'un physiquement ?",
+    "C'est quoi la chose la plus coquine que t'aies jamais faite ?",
+    "T'as déjà menti sur ton expérience pour impressionner quelqu'un ?",
+    "C'est quoi ton endroit idéal pour un moment intime ?",
+    "T'as déjà eu une nuit d'un soir ? Raconte sans nommer.",
+    "C'est quoi le truc que tu n'oserais jamais demander à quelqu'un ?",
+    "C'est quoi ton fantasme de situation le plus récurrent ?",
+    "C'est quoi un fantasme que t'as jamais osé dire à voix haute ?",
+    "T'as déjà eu une nuit que tu n'oublieras jamais ? Décris sans nommer.",
+    "C'est quoi le désir que t'oses jamais avouer ?",
+    "C'est quoi la chose la plus coquine que t'aies jamais faite et adorée ?",
+    "T'as déjà eu envie de quelqu'un dans ce groupe au point d'y penser sérieusement ?",
+    "C'est quoi ton fantasme le plus précis et détaillé ?"
+  ]
+};
+
+// Actions selon contexte (distance vs sur place) et intensité
+const AOV_ACTION = {
   soft: {
-    verite: [
-      // Niveau 1 — très léger
-      "C'est quoi le truc le plus gênant que t'aies jamais fait en public ?",
-      "T'as déjà eu le béguin pour quelqu'un que tu n'aurais pas dû ?",
-      "C'est quoi ton défaut que tu assumes complètement ?",
-      "T'as déjà menti à quelqu'un dans cette partie ? Sur quoi ?",
-      "C'est quoi le compliment que tu aimerais recevoir mais que personne te fait ?",
-      "T'as déjà été jaloux(se) de quelqu'un ici ? De quoi ?",
-      "C'est quoi la chose la plus courageuse que t'aies jamais faite ?",
-      "T'as un secret que t'as jamais dit à personne ?",
-      "C'est quoi le truc le plus stupide que t'aies fait par amour ?",
-      "T'as déjà fait quelque chose d'embarrassant que personne ne sait ?",
-      "C'est quoi ta plus grande peur dans une relation ?",
-      "T'as déjà dit oui alors que tu voulais dire non ? Dans quel contexte ?",
-      "C'est quoi le mensonge que tu répètes le plus souvent ?",
-      "T'as déjà été amoureux(se) sans le dire ? À qui ?",
-      "C'est quoi la chose dont tu es secrètement fier(e) mais que tu n'avoues pas ?",
-      // Niveau 2 — plus personnel
-      "C'est quoi ton plus grand regret dans une relation ?",
-      "T'as déjà dit 'je t'aime' sans le penser vraiment ?",
-      "C'est quoi la chose la plus égoïste que t'aies jamais faite ?",
-      "T'as déjà eu envie d'embrasser quelqu'un dans ce groupe ?",
-      "C'est quoi ton plus grand complexe ?",
-      "T'as déjà trahi la confiance de quelqu'un ? Comment ?",
-      "C'est quoi la dernière fois que t'as vraiment pleuré et pourquoi ?",
-      "T'as déjà ressenti quelque chose pour quelqu'un que t'aurais pas dû ?",
-      "C'est quoi la pensée que t'oses jamais dire à voix haute ?",
-      "T'as déjà fait semblant d'être quelqu'un d'autre pour plaire à quelqu'un ?",
-      // Niveau 3 — intense
-      "C'est quoi la chose la plus intime que t'aies jamais partagée avec quelqu'un ?",
-      "T'as déjà voulu quitter une situation mais t'es resté(e) par peur ? Laquelle ?",
-      "C'est quoi le moment où tu t'es senti(e) le plus seul(e) malgré les gens autour ?",
-      "T'as déjà eu honte de quelque chose que tu as fait et tu te pardonne pas encore ?",
-      "C'est quoi la chose que tu voudrais changer dans ta façon d'aimer ?"
-    ],
-    action: [
+    distance: [
       // Niveau 1
-      "Envoie un compliment sincère à quelqu'un dans le chat maintenant.",
-      "Dis dans le chat ce que tu penses vraiment de cette partie.",
-      "Montre le dernier meme que t'as envoyé à quelqu'un.",
-      "Dis le prénom de quelqu'un qui te plaît en ce moment.",
-      "Montre la photo la plus bizarre de ta galerie sans la choisir.",
-      "Envoie un message vocal d'au moins 10 secondes qui te décrit en ce moment.",
-      "Fais un dessin de toi en 30 secondes et envoie-le en photo.",
-      "Dis 3 choses que les gens ne savent pas sur toi.",
-      "Imite quelqu'un dans ce groupe dans le chat — ils doivent deviner qui.",
+      "Envoie une photo de ta tête en ce moment sans te préparer.",
+      "Envoie un audio de 10 secondes en te décrivant sans réfléchir.",
+      "Fais une grimace ridicule et envoie la photo.",
+      "Montre l'objet le plus bizarre dans la pièce où tu es.",
+      "Envoie la dernière photo que t'as prise sans la choisir.",
+      "Fais une danse de 10 secondes et envoie la vidéo.",
+      "Imite quelqu'un du groupe dans un audio — ils doivent deviner qui.",
       // Niveau 2
-      "Envoie le dernier message vocal que t'as envoyé à quelqu'un.",
+      "Envoie un message vocal en avouant quelque chose que tu n'as jamais dit.",
       "Montre une photo de toi dont t'es pas fier(e).",
-      "Dis quelque chose que t'as jamais dit à quelqu'un dans ce groupe.",
-      "Fais une déclaration sincère à la personne de ton choix dans le chat.",
-      "Envoie une photo de ce que tu vois depuis là où tu es maintenant.",
-      "Dis dans le chat la chose la plus honnête que tu penses sur toi-même.",
-      "Envoie le dernier meme ou image que t'as reçu sans regarder.",
+      "Dis 3 choses sincères sur quelqu'un dans le groupe dans le chat.",
+      "Appelle quelqu'un en dehors du jeu et dis-lui ce que tu penses vraiment de lui.",
+      "Envoie un vocal de 20 secondes en décrivant ta journée comme si c'était une scène de film.",
       // Niveau 3
-      "Dis à quelqu'un ici ce que tu penses vraiment de lui/elle, sincèrement.",
-      "Raconte quelque chose que personne dans ce groupe ne sait sur toi.",
       "Envoie un message à quelqu'un en dehors du jeu que t'aurais jamais osé envoyer.",
       "Dis dans le chat ta plus grande insécurité sans filtre.",
-      "Appelle ou envoie un message vocal à quelqu'un en dehors du jeu et dis-lui ce que tu penses vraiment de lui/elle."
+      "Fais une déclaration sincère et personnelle à quelqu'un du groupe dans le chat."
+    ],
+    surplace: [
+      // Niveau 1
+      "Fais une grimace ridicule pendant 10 secondes.",
+      "Imite quelqu'un du groupe — les autres doivent deviner qui.",
+      "Fais le tour de la pièce en marchant comme un pingouin.",
+      "Chante 10 secondes d'une chanson au hasard.",
+      "Dis quelque chose de sincère à la personne à ta gauche.",
+      // Niveau 2
+      "Fais un câlin de 10 secondes à la personne de ton choix.",
+      "Masse les épaules de la personne à ta droite pendant 30 secondes.",
+      "Chuchote quelque chose de gentil à l'oreille de quelqu'un.",
+      "Fais un bisou sur la joue de la personne de ton choix.",
+      "Tiens la main de quelqu'un pendant 1 minute sans parler.",
+      // Niveau 3
+      "Dis à voix haute la chose la plus honnête que tu penses sur toi-même.",
+      "Fais une déclaration sincère à quelqu'un dans la pièce, face à face.",
+      "Regarde quelqu'un dans les yeux en silence pendant 30 secondes sans sourire."
     ]
   },
   hot: {
-    verite: [
-      // Niveau 1 — accessible
-      "C'est quoi ton fantasme le plus sage ?",
-      "T'as déjà été attiré(e) par quelqu'un dans ce groupe ?",
-      "C'est quoi le truc le plus flirty que t'aies jamais fait ?",
-      "T'as déjà embrassé quelqu'un par défi et adoré ça ?",
-      "C'est quoi ton endroit préféré pour un baiser ?",
-      "T'as déjà envoyé un message flirty à la mauvaise personne ?",
-      "C'est quoi la dernière fois que t'as vraiment eu envie de quelqu'un ?",
-      "T'as déjà fantasmé sur quelqu'un dans ce groupe ? Qui ?",
-      "C'est quoi le look qui te rend fou/folle chez quelqu'un ?",
-      "T'as déjà eu un crush secret que personne ne sait ?",
-      "C'est quoi la chose la plus romantique que quelqu'un ait jamais faite pour toi ?",
-      "T'as déjà été jaloux(se) d'une relation d'une autre personne ?",
-      "C'est quoi ton signe d'intérêt quand quelqu'un te plaît ?",
-      "T'as déjà flirté avec quelqu'un sans t'en rendre compte ?",
-      "C'est quoi ton rituel de séduction sans le dire ?",
-      // Niveau 2 — plus chaud
-      "C'est quoi ton plus grand turn-on ?",
-      "T'as déjà eu des pensées très précises sur quelqu'un dans ce groupe ?",
-      "C'est quoi le truc le plus osé que t'aies jamais fait ?",
-      "T'as déjà eu envie de quelque chose et pas osé le demander ? C'était quoi ?",
-      "C'est quoi ta définition d'une nuit parfaite avec quelqu'un ?",
-      "T'as déjà fait quelque chose d'interdit et adoré ça ?",
-      "C'est quoi le truc qui te rend fou/folle chez quelqu'un physiquement ?",
-      "T'as déjà eu une attirance pour quelqu'un que t'aurais vraiment pas dû ?",
-      "C'est quoi la chose la plus coquine que t'aies jamais faite ?",
-      "T'as déjà menti sur ton expérience pour impressionner quelqu'un ?",
-      "C'est quoi ton endroit idéal pour un moment intime ?",
-      "T'as déjà eu une nuit d'un soir ? Raconte sans nommer.",
-      "C'est quoi le truc que tu n'oserais jamais demander à quelqu'un au lit ?",
-      "T'as déjà eu honte d'une attirance que tu as eue ? Pourquoi ?",
-      "C'est quoi ton fantasme de situation le plus récurrent ?",
-      // Niveau 3 — très hot
-      "C'est quoi un fantasme que t'as jamais osé dire à voix haute ?",
-      "T'as déjà eu une nuit que tu n'oublieras jamais ? Décris sans nommer.",
-      "C'est quoi le truc le plus intime que tu ferais avec quelqu'un que tu viens de rencontrer ?",
-      "T'as déjà envoyé une photo que tu regrettes ? Décris-la.",
-      "C'est quoi le désir que t'oses jamais avouer ?",
-      "C'est quoi la chose la plus coquine que t'aies jamais faite et adorée ?",
-      "T'as déjà simulé quelque chose au lit ? Pourquoi ?",
-      "C'est quoi le truc le plus audacieux que tu ferais ce soir si tu pouvais ?",
-      "T'as déjà eu envie de quelqu'un dans ce groupe au point d'y penser sérieusement ?",
-      "C'est quoi ton fantasme le plus précis et détaillé ?"
-    ],
-    action: [
+    distance: [
       // Niveau 1
-      "Envoie un message flirty à quelqu'un dans le chat.",
-      "Décris dans le chat ce que tu trouves attirant chez quelqu'un dans ce groupe.",
-      "Dis à voix haute ton plus grand turn-on et envoie-le dans le chat.",
-      "Envoie un GIF ou emoji qui résume ton humeur coquine en ce moment.",
-      "Dis dans le chat la dernière fois que tu as vraiment eu envie de quelqu'un.",
+      "Envoie une photo de toi en ce moment sans te préparer.",
+      "Envoie un audio en murmurant quelque chose de flirty.",
+      "Montre la partie de ton corps dont tu es le plus fier(e) en photo.",
       "Envoie un message dans le chat comme si tu draguais quelqu'un pour la première fois.",
-      "Décris en 3 mots ce que tu recherches chez quelqu'un.",
-      "Envoie dans le chat le compliment le plus flirty que tu saches faire.",
-      "Dis dans le chat ton type physique idéal sans nommer personne.",
-      "Envoie un message vocal en murmurant quelque chose de flirty.",
+      "Envoie un audio en décrivant ce que tu portes en ce moment.",
+      "Dis dans le chat ce que tu ferais si quelqu'un du groupe frappait à ta porte là maintenant.",
       // Niveau 2
-      "Envoie une photo de toi en ce moment (face cachée si tu veux).",
-      "Raconte dans le chat un rêve dont tu te souviens avec des détails.",
-      "Fais un compliment très personnel et intime à quelqu'un dans le chat.",
-      "Dis dans le chat ce que tu ferais si t'étais seul(e) avec quelqu'un dans ce groupe.",
-      "Envoie un message vocal en décrivant ce que tu portes en ce moment.",
-      "Décris dans le chat ton endroit idéal pour un rendez-vous intime.",
-      "Dis la chose la plus audacieuse que tu ferais avec quelqu'un que tu trouves attirant.",
-      "Envoie une photo de la pièce où tu es, l'ambiance compte.",
-      "Décris dans le chat en détail ce qui te fait craquer physiquement chez quelqu'un.",
-      "Envoie dans le chat un message comme si tu envoyais un texto à 2h du matin à quelqu'un qui te plaît.",
-      "Dis dans le chat ce que tu ferais si quelqu'un dans ce groupe frappait à ta porte maintenant.",
-      "Envoie un message vocal de 15 secondes minimum qui décrit ce que tu ressens en jouant.",
-      // Niveau 3 — vraiment hot
       "Enlève un vêtement et envoie une photo (visage caché si tu veux).",
-      "Envoie un message vocal en décrivant ce que tu aimerais faire ce soir.",
-      "Raconte ton fantasme le plus précis dans le chat avec un maximum de détails.",
-      "Dis dans le chat ce que t'attendrais de quelqu'un dans ce groupe si la partie se terminait chez toi.",
-      "Envoie une photo de la partie de ton corps dont tu es le plus fier(e).",
-      "Décris dans le chat en détail le moment le plus chaud que tu aies vécu.",
-      "Envoie un message dans le chat comme si tu tentais de séduire quelqu'un ici, sans filtre.",
-      "Dis dans le chat ton fantasme de lieu le plus précis.",
-      "Raconte la chose la plus osée que t'aies jamais faite que personne ne sait.",
-      "Envoie un message vocal en décrivant exactement ce qui te ferait craquer chez quelqu'un ce soir."
+      "Envoie un audio en décrivant ton fantasme de lieu avec des détails.",
+      "Envoie une photo de la pièce où tu es avec une ambiance qui te représente.",
+      "Envoie un message comme si tu envoyais un texto à 2h du matin à quelqu'un qui te plaît.",
+      "Envoie un audio de 20 secondes en décrivant ce qui te ferait craquer chez quelqu'un ce soir.",
+      "Dis dans le chat ce que t'attendrais de quelqu'un du groupe si la partie se terminait chez toi.",
+      // Niveau 3
+      "Enlève deux vêtements et envoie une photo (visage caché si tu veux).",
+      "Envoie un audio en décrivant ton fantasme le plus précis avec des détails.",
+      "Envoie une photo de la partie de ton corps que tu trouves la plus séduisante.",
+      "Envoie un vocal en décrivant exactement ce que tu aimerais qu'on te fasse ce soir.",
+      "Dis dans le chat ton désir le plus honnête du moment sans filtre."
+    ],
+    surplace: [
+      // Niveau 1
+      "Fais un bisou sur la joue de la personne de ton choix.",
+      "Murmure quelque chose de flirty à l'oreille de quelqu'un.",
+      "Tiens la main de quelqu'un pendant 2 minutes en le regardant dans les yeux.",
+      "Fais un compliment très personnel à quelqu'un dans la pièce.",
+      "Masse le dos de la personne de ton choix pendant 1 minute.",
+      // Niveau 2
+      "Fais un bisou dans le cou de la personne de ton choix.",
+      "Chuchote ton fantasme à l'oreille de quelqu'un.",
+      "Enlève un vêtement devant tout le groupe.",
+      "Passe tes doigts dans les cheveux de la personne de ton choix pendant 30 secondes.",
+      "Fais un bisou sur l'épaule de quelqu'un.",
+      "Regarde quelqu'un dans les yeux pendant 1 minute entière sans sourire ni parler.",
+      // Niveau 3
+      "Enlève deux vêtements devant le groupe.",
+      "Fais un bisou dans le cou de quelqu'un et reste 5 secondes.",
+      "Dis à voix haute à quelqu'un du groupe ce que tu ferais avec lui/elle si vous étiez seul(e)s.",
+      "Masse l'intérieur des avant-bras de la personne de ton choix pendant 1 minute.",
+      "Chuchote à l'oreille de quelqu'un le truc le plus osé que tu oserais faire ce soir."
     ]
   }
 };
@@ -213,33 +221,29 @@ function getDilemmes(intensity, count) {
   return [...DILEMMES[intensity]].sort(()=>Math.random()-.5).slice(0,count);
 }
 
-// Génère une séquence AoV 50/50 vérité/action avec progression d'intensité
-function getAovSequence(intensity, playerNames, roundsPerPlayer) {
-  const pool = AOV[intensity];
-  const verites = [...pool.verite].sort(()=>Math.random()-.5);
-  const actions = [...pool.action].sort(()=>Math.random()-.5);
+function getAovSequence(intensity, context, playerNames, roundsPerPlayer) {
+  const verites = [...AOV_VERITE[intensity]].sort(()=>Math.random()-.5);
+  const actions = [...AOV_ACTION[intensity][context]].sort(()=>Math.random()-.5);
   const total = playerNames.length * roundsPerPlayer;
   const sequence = [];
   let vIdx = 0, aIdx = 0;
 
   for (let i = 0; i < total; i++) {
-    const playerIdx = i % playerNames.length;
-    const player = playerNames[playerIdx];
+    const player = playerNames[i % playerNames.length];
     const progress = i / total;
     const level = progress < 0.33 ? 0 : progress < 0.66 ? 1 : 2;
-    // Strictement 50/50 : alterner avec un peu d'aléatoire
-    const isVerite = (i % 2 === 0) ? Math.random() > 0.25 : Math.random() < 0.25;
+    // 50/50 strictement en alternant
+    const isVerite = i % 2 === 0;
 
     let text, type;
     if (isVerite && vIdx < verites.length) {
       text = verites[vIdx++]; type = "verite";
-    } else if (aIdx < actions.length) {
+    } else if (!isVerite && aIdx < actions.length) {
       text = actions[aIdx++]; type = "action";
     } else if (vIdx < verites.length) {
       text = verites[vIdx++]; type = "verite";
     } else {
-      // recycle si on manque
-      text = pool.verite[Math.floor(Math.random()*pool.verite.length)]; type = "verite";
+      text = actions[aIdx % actions.length]; aIdx++; type = "action";
     }
 
     sequence.push({ player, type, text, level });
@@ -287,6 +291,9 @@ const G = `
   .mode-emoji{font-size:24px;margin-bottom:6px;}
   .mode-name{font-size:12px;font-weight:600;}
   .mode-desc{font-size:10px;color:var(--muted);margin-top:3px;}
+  .ctx-row{display:flex;gap:8px;margin-bottom:20px;}
+  .ctx-btn{flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border);background:var(--s2);color:var(--muted2);font-family:'Instrument Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .18s;text-align:center;}
+  .ctx-btn.sel{border-color:var(--purple);color:var(--purple);background:rgba(167,139,250,.07);}
   .count-row{display:flex;gap:8px;margin-bottom:20px;}
   .cnt-btn{flex:1;padding:11px;border-radius:11px;border:1.5px solid var(--border);background:var(--s2);color:var(--muted2);font-family:'Instrument Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .18s;}
   .cnt-btn.sel{border-color:var(--gold);color:var(--gold);background:rgba(212,168,83,.07);}
@@ -491,6 +498,7 @@ function CreateScreen({ onStart, onBack }) {
   const [players, setPlayers] = useState([]);
   const [playerInput, setPlayerInput] = useState("");
   const [roundsPerPlayer, setRoundsPerPlayer] = useState(5);
+  const [aovContext, setAovContext] = useState(null); // "distance" | "surplace"
 
   const MODES = [
     {id:"decouverte",emoji:"💛",name:"Découverte",desc:"Se connaître"},
@@ -515,7 +523,8 @@ function CreateScreen({ onStart, onBack }) {
       dilemmes = getDilemmes(mode==="dilemme_epice"?"epice":"soft", count);
     } else if (isAov) {
       aovPlayers = [name.trim(), ...players];
-      aovSequence = getAovSequence(mode==="aov_hot"?"hot":"soft", aovPlayers, roundsPerPlayer);
+      const intensity = mode==="aov_hot"?"hot":"soft";
+      aovSequence = getAovSequence(intensity, aovContext, aovPlayers, roundsPerPlayer);
     } else {
       const qs=getQuestions(mode,count);
       questions=[...customQs,...qs].slice(0,count+customQs.length);
@@ -534,7 +543,8 @@ function CreateScreen({ onStart, onBack }) {
     if (game) onStart({...game, myRole:"host", myName:name.trim()});
   }
 
-  const canCreate = mode && name.trim() && (!isAov || players.length >= 1);
+  const canCreate = mode && name.trim() &&
+    (!isAov || (players.length >= 1 && aovContext !== null));
 
   return (
     <div className="screen" style={{justifyContent:"flex-start",paddingTop:36}}>
@@ -562,6 +572,12 @@ function CreateScreen({ onStart, onBack }) {
         </>}
 
         {isAov && <>
+          <div className="lbl">Vous jouez…</div>
+          <div className="ctx-row">
+            <button className={`ctx-btn ${aovContext==="distance"?"sel":""}`} onClick={()=>setAovContext("distance")}>📱 À distance</button>
+            <button className={`ctx-btn ${aovContext==="surplace"?"sel":""}`} onClick={()=>setAovContext("surplace")}>🏠 Sur place</button>
+          </div>
+
           <div className="lbl">Joueurs (toi + 1 à 5 autres)</div>
           {players.length < 5 && (
             <div className="cq-row">
