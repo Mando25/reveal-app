@@ -222,31 +222,33 @@ function getDilemmes(intensity, count) {
 }
 
 function getAovSequence(intensity, context, playerNames, roundsPerPlayer) {
-  const verites = [...AOV_VERITE[intensity]].sort(()=>Math.random()-.5);
-  const actions = [...AOV_ACTION[intensity][context]].sort(()=>Math.random()-.5);
-  const total = playerNames.length * roundsPerPlayer;
+  const allVerites = [...AOV_VERITE[intensity]].sort(()=>Math.random()-.5);
+  const allActions = [...AOV_ACTION[intensity][context]].sort(()=>Math.random()-.5);
   const sequence = [];
   let vIdx = 0, aIdx = 0;
 
-  for (let i = 0; i < total; i++) {
-    const player = playerNames[i % playerNames.length];
-    const progress = i / total;
-    const level = progress < 0.33 ? 0 : progress < 0.66 ? 1 : 2;
-    // 50/50 strictement en alternant
-    const isVerite = i % 2 === 0;
+  // Pour chaque joueur, construire ses rounds avec 50/50 vérité/action
+  for (let round = 0; round < roundsPerPlayer; round++) {
+    for (let p = 0; p < playerNames.length; p++) {
+      const player = playerNames[p];
+      const progress = round / roundsPerPlayer;
+      const level = progress < 0.33 ? 0 : progress < 0.66 ? 1 : 2;
+      // Chaque joueur alterne vérité/action à chaque round
+      const isVerite = round % 2 === p % 2;
 
-    let text, type;
-    if (isVerite && vIdx < verites.length) {
-      text = verites[vIdx++]; type = "verite";
-    } else if (!isVerite && aIdx < actions.length) {
-      text = actions[aIdx++]; type = "action";
-    } else if (vIdx < verites.length) {
-      text = verites[vIdx++]; type = "verite";
-    } else {
-      text = actions[aIdx % actions.length]; aIdx++; type = "action";
+      let text, type;
+      if (isVerite && vIdx < allVerites.length) {
+        text = allVerites[vIdx++]; type = "verite";
+      } else if (!isVerite && aIdx < allActions.length) {
+        text = allActions[aIdx++]; type = "action";
+      } else if (vIdx < allVerites.length) {
+        text = allVerites[vIdx++]; type = "verite";
+      } else {
+        text = allActions[aIdx % allActions.length]; aIdx++; type = "action";
+      }
+
+      sequence.push({ player, type, text, level });
     }
-
-    sequence.push({ player, type, text, level });
   }
   return sequence;
 }
